@@ -1,0 +1,253 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(tidyverse)
+library(broom)
+library(Hmisc)
+```
+
+```{r}
+house_data<-read.csv(file.choose(),header = TRUE)
+head(house_data)
+tail(house_data)
+```
+```{r}
+names(house_data)[2]<-paste("X1.transaction.date")
+names(house_data)[3]<-paste("X2.house.age")
+names(house_data)[4]<-paste("X3.distance.to.the.nearest.MRT.station")
+names(house_data)[5]<-paste("X4.number.of.convenience.stores")
+names(house_data)[6]<-paste("X5.latitude")
+names(house_data)[7]<-paste("X6.longitude")
+names(house_data)[8]<-paste("Y.house.price.of.unit.area")
+house_data
+```
+
+
+```{r}
+summary(house_data)
+
+```
+
+```{r}
+#2-Run the regression 
+
+Regression=lm(house_data$Y.house.price.of.unit.area~house_data$X1.transaction.date+house_data$X2.house.age+house_data$X3.distance.to.the.nearest.MRT.station+house_data$X4.number.of.convenience.stores+house_data$X5.latitude+house_data$X6.longitude)
+summary(Regression)
+```
+
+
+```{r}
+#Scatterplot with Regression Line:
+
+plot(house_data$Y.house.price.of.unit.area, predict(Regression), xlab = "Observed Values", ylab = "Predicted Values", col = "blue", pch = 19)
+abline(0, 1, col = "red")
+
+```
+
+```{r}
+qqnorm(Regression$residuals)
+qqline(Regression$residuals)
+```
+
+```{r}
+library(olsrr)
+```
+```{r}
+#test <- ols_all_subset(Regression)
+
+```
+```{r}
+
+```
+
+#3-Run the linear regression model without X6
+
+#By inspection of the linear regression models from both sets, 
+#the p-values are very good and the R^2 are acceptable. Moreover, from the first graph from both sets, the homoscedasticity is respected since the lines are almost horizontal. 
+#However, from the second graph, the residuals do not seem normally distributed since there are many points that are far from the straight line. 
+
+```{r}
+Regression1=lm(house_data$Y.house.price.of.unit.area~house_data$X1.transaction.date+house_data$X2.house.age+house_data$X3.distance.to.the.nearest.MRT.station+house_data$X4.number.of.convenience.stores+house_data$X5.latitude)
+summary(Regression1)
+
+```
+#Plotting the model 
+
+```{r}
+
+par(mfrow = c(2, 2))
+options(repr.plot.width = 16, repr.plot.height = 16)
+plot(Regression1)
+```
+
+```{r}
+library(ggplot2)
+
+
+ggplot(data = house_data, aes(x = Y.house.price.of.unit.area)) +
+  geom_histogram(binwidth = 0.5, col = "red", fill = "green") +
+  geom_density(aes(y = ..count.. * 0.5), col = "blue") + # Add a density curve
+  scale_fill_gradient("Count", low = "green", high = "red") +
+  labs(title = "Histogram of House Price per Unit Area with Density Curve", x = "Unit Area", y = "Count")
+
+
+```
+
+```{r}
+#I will then try to improve the model by applying a log transformation to the model.
+
+#4- Run the linear regression with the log tranformation
+#Conclusion:1-The p values stay excellent. 2-The R^2 have improved in both models since they have increased 3-The homoscedasticity has also improved since the line in the first graph for both sets are more horizontal than in the previous model. 4-Even if the points of the residuals are closer to the straight line compared to the last model, there is still room for improvement. I will then try to remove one variable from the model to get a better result.*/
+```
+
+```{r}
+Regression2=lm(log(house_data$Y.house.price.of.unit.area)~house_data$X1.transaction.date+house_data$X2.house.age+house_data$X3.distance.to.the.nearest.MRT.station+house_data$X4.number.of.convenience.stores+house_data$X5.latitude)
+summary(Regression2)
+
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(Regression2)
+
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(data = house_data, aes(x = log(Y.house.price.of.unit.area))) +
+  geom_histogram(binwidth = 0.15, col = "red", fill = "green") +
+  scale_fill_gradient("Count", low = "green", high = "red") +
+  labs(title = "Histogram of Log House Price per Unit Area", x = "Log Unit Area", y = "Count")
+
+```
+
+```{r}
+ggplot(data=house_data, aes(log(Y.house.price.of.unit.area))) + 
+  geom_histogram(breaks=seq(0, 2, by=0.15), 
+                 col="red", 
+                 aes(fill=..count..)) +
+  scale_fill_gradient("Count", low="green", high="red")+
+  labs(title="Histogram Log House Price Unit Area",x="Log Unit Area",y="Count")
+```
+
+```{r}
+#5-Analyze which variables should be dropped in the model
+#The variables that have the lowest correlation with Y is X1 and X2. 
+#We will then try to run the regression without this variable in the model to see what is going to happen.
+
+```
+
+
+```{r}
+house_data=subset(house_data,select=-c(X6.longitude,No))
+house_data$Y.house.price.of.unit.area=log(house_data$Y.house.price.of.unit.area)
+house_data
+corr_mat=cor(house_data)
+print(corr_mat)
+pairs(house_data)
+```
+
+
+```{r}
+print(corr_mat)
+```
+
+
+```{r}
+mydata.rcorr = rcorr(as.matrix(house_data))
+print(mydata.rcorr)
+```
+
+
+
+```{r}
+mydata.coeff = mydata.rcorr$r
+mydata.p = mydata.rcorr$P
+mydata.p
+```
+
+
+
+
+```{r}
+
+library(corrplot)
+
+# Create and display the correlation matrix plot
+corrplot(corr_mat, method = "number",addCoef.col="black",number.cex=0.75)
+
+```
+```{r}
+#6-Rerun the regression without X1 and X2
+#Even if the R^2 has decreased a little bit in both sets, the normality of residuals has gotten better without X1 and X2 in the set. The results in general are similar in both sets. I will therefore accept that model.
+```
+
+
+
+```{r}
+Regression3=lm(log(house_data$Y.house.price.of.unit.area)~house_data$X3.distance.to.the.nearest.MRT.station+house_data$X4.number.of.convenience.stores+house_data$X5.latitude)
+summary(Regression3)
+plot(Regression3)
+```
+
+
+```{r}
+stepwise_model <- step(Regression2, direction = "backward")
+
+# Print the final selected model
+summary(stepwise_model)
+
+```
+
+```{r}
+# Get the model residuals
+model_residuals_m2 = Regression2$residuals
+# Plot the result
+hist(model_residuals_m2)
+# Plot the residuals
+qqnorm(model_residuals_m2)
+# Plot the Q-Q line
+qqline(model_residuals_m2)
+```
+
+```{r}
+Regression.diag.metrics <- augment(Regression2)
+head(Regression.diag.metrics)
+
+par(mfrow = c(2, 2))
+plot(Regression2)
+```
+
+
+```{r}
+library(caTools)
+set.seed(123)
+split = sample.split(house_data$Y.house.price.of.unit.area, SplitRatio = 0.8)
+training_set = subset(house_data, split == TRUE)
+test_set = subset(house_data, split == FALSE)
+
+dim(training_set)
+dim(test_set)
+
+y_pred = predict(Regression2, data = test_set)
+y_pred
+```
+
+
+
+
+
+
+
+
+
+
